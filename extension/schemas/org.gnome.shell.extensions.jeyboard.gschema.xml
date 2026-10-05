@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GSettings schema: the extension's small persistent store (saved in dconf under
+  /org/gnome/shell/extensions/jeyboard/). This XML is the source; it is compiled to
+  gschemas.compiled by the packaging/install step, and that compiled file is never
+  committed or put in the extension zip (see docs/SPEC.md 11.3). extension.js gets the
+  settings via this.getSettings(), which finds the schema id below. Key types: b =
+  boolean, s = string, d = double (a floating-point number). Read with get_boolean /
+  get_string / get_double and write with the matching set_*.
+
+  Placement model: the keyboard is positioned relative to ONE monitor's work area
+  (the monitor rectangle minus the top bar and docks), using fractions (0..1) instead
+  of pixels. Fractions keep the panel in a sensible place when the resolution or the
+  monitor arrangement changes. view.js converts between fractions and pixels
+  (restore() and save()); layout.js does the arithmetic. Geometry is written only when
+  a drag or resize ends. See docs/SPEC.md 8 and 11.2.
+-->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.jeyboard" path="/org/gnome/shell/extensions/jeyboard/">
+    <!-- The user's choice from the top-bar button or the x button. Written only in the
+         user session: the lock screen and login greeter always force the panel on and
+         never change this. extension.js reads it in _syncSessionState(). -->
+    <key name="visible" type="b">
+      <default>false</default>
+      <summary>Keyboard shown in the user session</summary>
+    </key>
+    <!-- Stable connector name (such as 'HDMI-1' or 'eDP-1') of the screen holding the
+         panel. Connector names are used instead of monitor indexes because indexes
+         change when displays are plugged in. If empty, or that display is gone,
+         view.js falls back to the primary monitor. -->
+    <key name="monitor" type="s">
+      <default>''</default>
+      <summary>Connector of the monitor holding the keyboard ('' = primary)</summary>
+    </key>
+    <!-- Left edge as a fraction of the work-area width. The default -1 is a sentinel
+         (any negative value) meaning "never placed": use the default position, which
+         is bottom centre of the work area (layout.js rectFromSaved). -->
+    <key name="pos-x" type="d">
+      <default>-1.0</default>
+      <summary>Keyboard left edge as a fraction of the work-area width (-1 = default position)</summary>
+    </key>
+    <!-- Top edge as a fraction of the work-area height. Negative = default position,
+         as for pos-x. -->
+    <key name="pos-y" type="d">
+      <default>-1.0</default>
+      <summary>Keyboard top edge as a fraction of the work-area height</summary>
+    </key>
+    <!-- Whole panel width as a fraction of the work-area width; the height follows
+         from the layout's shape. Limits (minimum key size, work area width) are
+         applied when it is restored, so a stored value never has to be valid. -->
+    <key name="width" type="d">
+      <default>0.6</default>
+      <summary>Keyboard width as a fraction of the work-area width</summary>
+    </key>
+  </schema>
+</schemalist>
