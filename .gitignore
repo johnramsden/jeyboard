@@ -1,0 +1,8 @@
+shell-test.log
+*.zip
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/gnome-shell-extension-jeyboard/
+debian/*.substvars
+debian/*.debhelper.log
