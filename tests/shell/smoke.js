@@ -38,7 +38,7 @@ import * as Scripting from 'resource:///org/gnome/shell/ui/scripting.js';
 
 // Must match the "uuid" in extension/metadata.json; it is how the shell names the
 // extension in Main.extensionManager.
-const UUID = 'jeyboard@ramsdenj.ca';
+const UUID = 'jeyboard@johnramsden.ca';
 let failed = 0;
 // The recorder. Every key press/release reaching the stage is appended here so a
 // check can compare "what the panel caused" with an expected string. Codes are

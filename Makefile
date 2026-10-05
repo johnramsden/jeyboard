@@ -1,4 +1,4 @@
-UUID = jeyboard@ramsdenj.ca
+UUID = jeyboard@johnramsden.ca
 SCHEMA = org.gnome.shell.extensions.jeyboard
 ZIP = $(UUID).shell-extension.zip
 SOURCES = metadata.json extension.js keys.js layout.js view.js input.js typer.js \

@@ -282,7 +282,7 @@ listed in its `metadata.json`.
   extensions load, and at lock time the shell may re-enable the extension after the mode
   already changed.
 - **Enabling.** The package does not enable the extension for users; they run
-  `gnome-extensions enable jeyboard@ramsdenj.ca` themselves. For the **login screen** the
+  `gnome-extensions enable jeyboard@johnramsden.ca` themselves. For the **login screen** the
   `.deb` installs a keyfile (`/usr/share/gdm/dconf/95-jeyboard`) that Ubuntu's gdm3
   compiles into the greeter's defaults whenever gdm starts, listing the extension as
   enabled. It takes effect at the next boot (restarting gdm3 also works but ends running

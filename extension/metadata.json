@@ -1,5 +1,5 @@
 {
-  "uuid": "jeyboard@ramsdenj.ca",
+  "uuid": "jeyboard@johnramsden.ca",
   "name": "jeyboard",
   "description": "On-screen keyboard with real modifier keys that works everywhere, including the lock and login screens.",
   "shell-version": ["50", "51"],

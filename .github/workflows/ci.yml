@@ -30,8 +30,8 @@ jobs:
       - name: Build the zip and check its contents
         run: |
           make zip
-          unzip -l jeyboard@ramsdenj.ca.shell-extension.zip
-          ! unzip -l jeyboard@ramsdenj.ca.shell-extension.zip | grep -q gschemas.compiled
+          unzip -l jeyboard@johnramsden.ca.shell-extension.zip
+          ! unzip -l jeyboard@johnramsden.ca.shell-extension.zip | grep -q gschemas.compiled
 
   shell-test:
     # Headless gnome-shell test (tests/shell/smoke.js). Needs gnome-shell 50, which only

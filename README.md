@@ -40,10 +40,10 @@ on the login screen at the next boot, unverified, spike S3):
 Extensions-website style zip (user install, no login screen support):
 
     make zip
-    gnome-extensions install --force jeyboard@ramsdenj.ca.shell-extension.zip
+    gnome-extensions install --force jeyboard@johnramsden.ca.shell-extension.zip
 
 Then log out and back in (a running shell does not see a new extension), and run
-`gnome-extensions enable jeyboard@ramsdenj.ca`. A user-installed copy takes
+`gnome-extensions enable jeyboard@johnramsden.ca`. A user-installed copy takes
 precedence over the system copy in that user's session. Use the keyboard icon in the top bar to show
 and hide the panel. It appears by itself on the lock screen, on the login screen
 and when a shell password dialog opens.

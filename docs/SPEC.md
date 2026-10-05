@@ -20,7 +20,7 @@ Targets: GNOME 50 first (Ubuntu 26.04 LTS ships gnome-shell and mutter 50.1 and 
 
 Fresh codebase. GJS OSK (https://github.com/Vishram1123/gjs-osk) and Touch Board (https://github.com/d3z-the-dev/touch-board) are GPL-3 references for ideas only; do not copy code from them. License: MIT.
 
-Identifiers: UUID `jeyboard@ramsdenj.ca`; GSettings schema id `org.gnome.shell.extensions.jeyboard`, path `/org/gnome/shell/extensions/jeyboard/`.
+Identifiers: UUID `jeyboard@johnramsden.ca`; GSettings schema id `org.gnome.shell.extensions.jeyboard`, path `/org/gnome/shell/extensions/jeyboard/`.
 
 ## 2. Why this architecture (decided; do not revisit)
 
@@ -242,7 +242,7 @@ Hazards to handle:
   - The screen shield and unlock dialog grab `Main.uiGroup` (https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/50.5/js/ui/unlockDialog.js#L955), and the GDM login dialog grabs the whole stage. The panel is inside both.
   - Polkit and network-secret dialogs can also appear over the lock screen (network since 50.1, https://gitlab.gnome.org/GNOME/gnome-shell/-/merge_requests/4160); the filter covers those.
 - **The `disable()` comment.** `disable()` MUST contain a comment justifying `unlock-dialog` (an EGO requirement), for example: "unlock-dialog: the on-screen keyboard is needed to type the password on the lock screen; it never reads key events."
-- **Enabling.** Users enable the extension themselves (`gnome-extensions enable jeyboard@ramsdenj.ca`, which writes `org.gnome.shell enabled-extensions`). The greeter is enabled by the greeter keyfile (11.3). Never rely on a session-mode JSON's `enabledExtensions`: `unlock-dialog` inherits an empty list, so such extensions are disabled at lock.
+- **Enabling.** Users enable the extension themselves (`gnome-extensions enable jeyboard@johnramsden.ca`, which writes `org.gnome.shell enabled-extensions`). The greeter is enabled by the greeter keyfile (11.3). Never rely on a session-mode JSON's `enabledExtensions`: `unlock-dialog` inherits an empty list, so such extensions are disabled at lock.
 
 ### 5.6 Other surfaces
 
@@ -546,7 +546,7 @@ Labels are written by hand for US. Typing does not depend on labels: keycodes ar
 
 ```json
 {
-  "uuid": "jeyboard@ramsdenj.ca",
+  "uuid": "jeyboard@johnramsden.ca",
   "name": "jeyboard",
   "description": "On-screen keyboard with real modifier keys that works everywhere, including the lock and login screens.",
   "shell-version": ["50", "51"],
@@ -573,7 +573,7 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 **Makefile targets.**
 - `all`: the first target; does nothing (debhelper runs the default target).
 - `test`: `gjs -m tests/run.js`.
-- `zip`: builds the EGO zip `jeyboard@ramsdenj.ca.shell-extension.zip`. The Makefile uses plain `zip` (below) rather than `gnome-extensions pack`; the content is equivalent and it works on hosts without `gnome-extensions`. The `pack` form, for reference:
+- `zip`: builds the EGO zip `jeyboard@johnramsden.ca.shell-extension.zip`. The Makefile uses plain `zip` (below) rather than `gnome-extensions pack`; the content is equivalent and it works on hosts without `gnome-extensions`. The `pack` form, for reference:
 
   ```
   gnome-extensions pack extension --force --out-dir=. \
@@ -584,9 +584,9 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 
   - Pass the `layouts` directory, not `layouts/us.js`: `pack` keeps only each extra source's basename.
   - `extension.js`, `metadata.json`, `stylesheet.css` and `schemas/*.gschema.xml` are added automatically. `pack` never compiles schemas, and the zip must never contain `gschemas.compiled` (an automated EGO rejection).
-  - On hosts without `gnome-extensions` (the dev host has none), use the equivalent `cd extension && zip -r ../jeyboard@ramsdenj.ca.shell-extension.zip metadata.json extension.js keys.js layout.js view.js input.js typer.js indicator.js stylesheet.css layouts schemas/org.gnome.shell.extensions.jeyboard.gschema.xml`.
+  - On hosts without `gnome-extensions` (the dev host has none), use the equivalent `cd extension && zip -r ../jeyboard@johnramsden.ca.shell-extension.zip metadata.json extension.js keys.js layout.js view.js input.js typer.js indicator.js stylesheet.css layouts schemas/org.gnome.shell.extensions.jeyboard.gschema.xml`.
 - `install DESTDIR=… FLAVOR=system`:
-  - installs `extension/` to `$(DESTDIR)/usr/share/gnome-shell/extensions/jeyboard@ramsdenj.ca/`, without `schemas/`;
+  - installs `extension/` to `$(DESTDIR)/usr/share/gnome-shell/extensions/jeyboard@johnramsden.ca/`, without `schemas/`;
   - installs the schema to `$(DESTDIR)/usr/share/glib-2.0/schemas/`; `Extension.getSettings()` falls back to the default schema source when there is no `schemas/` directory;
   - installs `data/gdm/95-jeyboard` to `$(DESTDIR)/usr/share/gdm/dconf/95-jeyboard` (mode 0644);
   - rewrites `session-modes` to include `gdm`;
@@ -600,7 +600,7 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 
   ```
   [org/gnome/shell]
-  enabled-extensions=['jeyboard@ramsdenj.ca']
+  enabled-extensions=['jeyboard@johnramsden.ca']
   ```
 
 - Keyfiles merge in filename order. `95-` sorts after `90-debian-settings` (a symlink to `/etc/gdm3/greeter.dconf-defaults`), so our value wins. A later-sorting file from another package that also sets `enabled-extensions` would override ours; document this.
@@ -616,7 +616,7 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 - There are no maintainer scripts: the schema is compiled by the glib trigger, and GDM recompiles its keyfiles at start.
 - `debian/source/format` is `3.0 (native)`; `debian/copyright` is MIT (Debian name: Expat).
 
-**User sessions.** The package does not force-enable the extension; the user runs `gnome-extensions enable jeyboard@ramsdenj.ca`. A user-installed (EGO) copy with the same UUID takes precedence over the system copy in that user's session.
+**User sessions.** The package does not force-enable the extension; the user runs `gnome-extensions enable jeyboard@johnramsden.ca`. A user-installed (EGO) copy with the same UUID takes precedence over the system copy in that user's session.
 
 ## 12. Development environment
 
@@ -625,14 +625,14 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
   - `make zip` must work with plain `zip` (11.3).
 - **VM.** Use the owner's existing virt-manager VM (Ubuntu 26.04, GNOME 50.1). Ask the owner before running builds or tests whether to use the VM.
 - **Iterating on Wayland.** Extension code cannot be reloaded in a running session; it needs a new shell process. Either:
-  - build the zip, run `gnome-extensions install --force jeyboard@ramsdenj.ca.shell-extension.zip` in the VM, then log out and back in; or
+  - build the zip, run `gnome-extensions install --force jeyboard@johnramsden.ca.shell-extension.zip` in the VM, then log out and back in; or
   - install `mutter-dev-bin` and run a nested shell with `dbus-run-session gnome-shell --devkit --wayland`.
 
   `scripts/push-to-vm.sh` automates build → copy (scp or a shared folder) → install.
 - **Debugging.** Logs: `journalctl -f -o cat /usr/bin/gnome-shell`. Looking Glass: Alt+F2 → `lg` (closed automatically on the lock screen).
 - **Ubuntu source check.** Before trusting spike results, compare the Ubuntu 50.1 sources (`apt source gnome-shell mutter`) with the files this spec cites at 50.5/51.0: `keyboard.js`, `modalDialog.js`, `grabHelper.js`, `switcherPopup.js`, `screenshot.js`, `events.c`, `clutter-main.c`, `meta-wayland-popup.c`, `meta-wayland-pointer.c`.
 - **GNOME 51.** Use an Ubuntu 26.10 or GNOME OS nightly VM.
-- **Optional later: headless CI.** `gnome-shell-test-tool --headless --extension jeyboard@ramsdenj.ca.shell-extension.zip tests/shell/smoke.js` (gnome-shell package, 50+). Automation scripts can import `Main` and create Clutter virtual pointer devices.
+- **Optional later: headless CI.** `gnome-shell-test-tool --headless --extension jeyboard@johnramsden.ca.shell-extension.zip tests/shell/smoke.js` (gnome-shell package, 50+). Automation scripts can import `Main` and create Clutter virtual pointer devices.
 
 ## 13. Spikes, then build
 
