@@ -19,8 +19,9 @@ jobs:
 
   package:
     # Builds the .deb (its dh_auto_test step runs `make test` again) and the EGO zip,
-    # and checks the zip never contains a compiled schema.
-    runs-on: ubuntu-latest
+    # and checks the zip never contains a compiled schema. Runs on Ubuntu 26.04, the
+    # distro the package targets. (ubuntu-26.04 is a GitHub "preview" image.)
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
@@ -35,21 +36,22 @@ jobs:
 
   shell-test:
     # Headless gnome-shell test (tests/shell/smoke.js). Needs gnome-shell 50, which only
-    # Ubuntu 26.04 ships, so it runs in a container. NOT yet verified on GitHub Actions
-    # (it passes locally on gnome-shell 50.1); continue-on-error keeps a CI-environment
-    # problem from failing the build until it has been seen green. Remove that line then.
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04 ships. NOT yet verified on GitHub Actions (it passes locally on
+    # gnome-shell 50.1); continue-on-error keeps a CI-environment problem from failing
+    # the build until it has been seen green. Remove that line then.
+    runs-on: ubuntu-26.04
     continue-on-error: true
-    container: ubuntu:26.04
     steps:
+      - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            gnome-shell gjs make zip git dbus dbus-x11 xvfb
-      - uses: actions/checkout@v4
+          sudo apt-get update
+          sudo apt-get install -y gnome-shell gjs make zip dbus
       - name: Prepare the runtime directory the shell expects
-        run: mkdir -p /run/user/$(id -u) && chmod 700 /run/user/$(id -u)
+        run: |
+          sudo mkdir -p /run/user/$(id -u)
+          sudo chown $(id -u):$(id -g) /run/user/$(id -u)
+          chmod 700 /run/user/$(id -u)
       - name: make shell-test
         run: make shell-test
       - name: Show the log on failure

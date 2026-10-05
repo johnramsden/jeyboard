@@ -55,8 +55,8 @@ and when a shell password dialog opens.
     make zip
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `make test` and the `.deb`/zip build on
-every push and pull request, plus `make shell-test` in an Ubuntu 26.04 container (that
-job is non-blocking until it has been seen to pass on GitHub).
+every push and pull request, plus `make shell-test` on the `ubuntu-26.04` runner (a GitHub
+preview image; that job is non-blocking until it has been seen to pass).
 
 ## Limitations
 
