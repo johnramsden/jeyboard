@@ -1,0 +1,83 @@
+/* jeyboard theme. Loaded automatically by GNOME Shell from the extension
+ * directory (stylesheet.css) while the extension is enabled, and unloaded on disable.
+ *
+ * This is St CSS, a subset of web CSS used by GNOME Shell widgets. Differences that
+ * matter here:
+ *  - Only some properties exist (background-color, border, border-radius, color,
+ *    font-size, text-align, padding...). There is no flexbox/grid; sizes and
+ *    positions are set from JavaScript (view.js), not here.
+ *  - A class selector such as .jeyboard-key matches the St widgets that view.js
+ *    gave style_class 'jeyboard-key'.
+ *  - Pseudo-classes :hover, :checked, :active are NOT set automatically for our
+ *    widgets. They are non-reactive (see view.js), so the pointer never triggers
+ *    them; view.js adds and removes them from state it computes itself:
+ *      :hover    pointer is over the key (fed from the input filter, cosmetic)
+ *      :checked  a modifier is on: one-shot (used up by the next normal key) or
+ *                locked (Shift, Ctrl, Alt; Super is one-shot only). The class
+ *                'locked' is added on top for the locked ones.
+ *      :active   the key is in the held-keys set right now. Shift/Ctrl/Alt that
+ *                are on are really held, so they get both :checked and :active;
+ *                Super is never held, so only it is plain :checked.
+ *  - Plain classes 'blocked' and 'high-contrast' are toggled by view.js too.
+ *  - Font sizes are NOT here: view.js sets them inline from the panel size and the
+ *    HiDPI scale factor.
+ *  - Rule order matters: later rules with equal specificity win. :checked comes
+ *    after :active, so a toggled-on modifier (Shift/Ctrl/Alt are both checked and
+ *    active) shows the steady "on" colour, while a key merely being clicked shows
+ *    the lighter :active colour.
+ */
+
+/* The outer panel: near-opaque dark box with a faint light border. */
+.jeyboard-panel {
+    background-color: rgba(30, 30, 34, 0.96);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+
+/* A key cap in its resting state, then one rule per state. */
+.jeyboard-key {
+    background-color: #3c3c44;
+    border-radius: 5px;
+    color: #f0f0f0;
+}
+.jeyboard-key:hover { background-color: #4c4c56; }
+.jeyboard-key:active { background-color: #62a0ea; color: #000000; }
+.jeyboard-key:checked { background-color: #3584e4; color: #ffffff; }
+/* A locked modifier (clicked twice) stays on until clicked again: ring it. */
+.jeyboard-key.locked { border: 2px solid #ffffff; }
+/* "blocked" is a class (not a pseudo-class): a refused key flashes red briefly. */
+.jeyboard-key.blocked { background-color: #c01c28; }
+
+
+/* Main key text, and the small shifted symbol in the top-left corner. */
+.jeyboard-key-label { text-align: center; }
+.jeyboard-key-sub { color: #b0b0b8; }
+.jeyboard-key:checked .jeyboard-key-sub { color: #dbe9fb; }
+
+
+/* Applied to the Caps Lock / Num Lock label while that lock is on. */
+.jeyboard-lock-on { color: #8ff0a4; }
+
+
+/* Header buttons: resize grip and close (x). */
+.jeyboard-grip,
+.jeyboard-close {
+    background-color: #3c3c44;
+    border-radius: 5px;
+    color: #f0f0f0;
+    text-align: center;
+}
+.jeyboard-grip:hover,
+.jeyboard-close:hover { background-color: #4c4c56; }
+.jeyboard-close:active { background-color: #c01c28; }
+
+
+/* High contrast: view.js adds the class "high-contrast" to the panel when the
+ * system accessibility setting is on. These descendant selectors then override the
+ * colours above with plain black and white. */
+.jeyboard-panel.high-contrast { background-color: #000000; border: 2px solid #ffffff; }
+.jeyboard-panel.high-contrast .jeyboard-key { background-color: #000000; border: 1px solid #ffffff; }
+.jeyboard-panel.high-contrast .jeyboard-key:checked { background-color: #ffffff; color: #000000; }
+/* White-on-white would hide the lock ring, so use black here. */
+.jeyboard-panel.high-contrast .jeyboard-key.locked { border: 3px solid #000000; }
