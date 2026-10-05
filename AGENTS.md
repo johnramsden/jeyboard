@@ -65,6 +65,7 @@ Everything in the codebase should be adequately tested.
   - Run only one at a time. A leftover test shell from a killed run holds the display; kill it by PID. Never kill by a broad pattern (it can match your own command line) and never touch the real GDM shell.
   - The headless shell picks against the last painted frame, so the test hovers over a freshly shown panel before the first click. It also emulates mutter swallowing off-panel releases (the real "no grab" case), which is what exercises the polling path.
 - Things headless cannot show (appearance, lock screen, login screen, polkit, popovers, multi-monitor, GNOME 51) are covered by the manual checklist in `docs/SPEC.md` 13.2: build the `.deb` or zip, install, log out and in, then enable. Say which items were run and on which GNOME version.
+- CI (`.github/workflows/ci.yml`) runs `make test` and the package build on every push and PR, and `make shell-test` in an Ubuntu 26.04 container (non-blocking until seen green on GitHub). Keep the workflow in step with the Makefile targets.
 - Run both `make test` and `make shell-test` before committing shell-facing changes, and report what was tested and how.
 
 ### Comments

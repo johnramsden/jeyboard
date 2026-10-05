@@ -54,6 +54,10 @@ and when a shell password dialog opens.
     make shell-test   # headless gnome-shell run with a virtual pointer
     make zip
 
+GitHub Actions (`.github/workflows/ci.yml`) runs `make test` and the `.deb`/zip build on
+every push and pull request, plus `make shell-test` in an Ubuntu 26.04 container (that
+job is non-blocking until it has been seen to pass on GitHub).
+
 ## Limitations
 
 - Keep Settings > Accessibility > Screen Keyboard **off**; the built-in keyboard is
