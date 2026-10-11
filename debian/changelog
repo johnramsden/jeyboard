@@ -1,3 +1,9 @@
+jeyboard (0.1.1) resolute; urgency=medium
+
+  * Remove monkeypatch
+
+ -- John Ramsden <johnramsden@riseup.net>  Sun, 11 Oct 2026 14:05:24 -0700
+
 jeyboard (0.1.0) resolute; urgency=medium
 
   * Initial release.

@@ -5,5 +5,5 @@
   "shell-version": ["50", "51"],
   "session-modes": ["user", "unlock-dialog"],
   "settings-schema": "org.gnome.shell.extensions.jeyboard",
-  "version-name": "0.1.0"
+  "version-name": "0.1.1"
 }
