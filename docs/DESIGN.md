@@ -171,6 +171,12 @@ buttons are down. When the claimed button is no longer down, we end the click ou
 Polling is the guaranteed release path; seeing the release event is just the fast path.
 Polling starts the moment a click is claimed, whatever it hit, so no claim can get stuck.
 
+One more wrinkle: `global.get_pointer()` can report the button as up slightly before the
+release event itself reaches our filter. When polling ends a click, we therefore note
+that its release is still owed, and consume it when it arrives (a fresh press of that
+button cancels the note, and it expires after half a second). Otherwise that late
+release would reach an app popover.
+
 We do not use a stage grab or `Main.pushModal()` to see the release, because either
 makes mutter drop keyboard focus from the app, breaking requirement 3.
 

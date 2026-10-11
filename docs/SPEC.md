@@ -64,7 +64,9 @@ jeyboard/
   docs/SPEC.md            this file
   docs/DESIGN.md          high-level design: how and why, for newcomers
   README.md               user-facing install/use notes and documented limitations
-  Makefile                all (no-op, first target), test, zip (EGO), install (system), clean
+  Makefile                all (no-op, first target), test, shell-test, zip (EGO), install (system), clean
+  tests/shell/smoke.js    headless gnome-shell smoke test (make shell-test)
+  .github/workflows/ci.yml  CI: make test, package build, make shell-test
   extension/
     metadata.json         see 11.1; `make install FLAVOR=system` rewrites session-modes
     extension.js          enable()/disable(): wires everything, owns lifecycle and session sync
@@ -173,7 +175,7 @@ Behaviour:
   - If another sequence is already claimed, consume the press but dispatch nothing.
   - Presses not over the panel: PROPAGATE.
 - **`BUTTON_RELEASE`:** if it belongs to the claimed sequence, end the sequence (below) and return STOP, wherever the pointer is. Decide from the press-time claim, never by hit-testing the release; a release let through under a grab would close an app popover. Seeing the release is not guaranteed (no-grab case above).
-- **Polling: the guaranteed path.** While a sequence is claimed, poll `global.get_pointer()`, which returns `[x, y, mods]` with button mask bits in `mods`: every 16 ms during a drag or resize, and every 100 ms during a key hold. Drag and resize are driven from the polled position; MOTION events seen over the panel MAY also update them, and are returned STOP. When the claimed button's mask bit clears, end the sequence. This is not just a watchdog; it is the normal release path when no grab is active and the pointer has left the panel.
+- **Polling: the guaranteed path.** While a sequence is claimed, poll `global.get_pointer()`, which returns `[x, y, mods]` with button mask bits in `mods`: every 16 ms during a drag or resize, and every 100 ms during a key hold. Drag and resize are driven from the polled position; MOTION events seen over the panel MAY also update them, and are returned STOP. When the claimed button's mask bit clears, end the sequence. This is not just a watchdog; it is the normal release path when no grab is active and the pointer has left the panel. `get_pointer()` can report the button up before the BUTTON_RELEASE event reaches the filter, so a sequence ended by polling records a pending `{button, device}` release; the next matching BUTTON_RELEASE is returned STOP (a new press of that button clears the record, and a record expires after 500 ms so a truly lost release cannot swallow an unrelated app release later; a hide deferred by a claim keeps the filter until the owed release arrives or expires). Extra buttons pressed during a claim are STOPped and recorded the same way.
 - **Ending a sequence:**
   - key: `typer.send(keys.release(state, button))`;
   - drag/resize: clamp, then save geometry;
@@ -573,6 +575,7 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 **Makefile targets.**
 - `all`: the first target; does nothing (debhelper runs the default target).
 - `test`: `gjs -m tests/run.js`.
+- `shell-test`: builds the zip and runs `tests/shell/smoke.js` in a headless `gnome-shell` (50+) via `gnome-shell-test-tool`; log in `shell-test.log` (git-ignored). CI (`.github/workflows/ci.yml`) runs `test`, the package build and `shell-test`.
 - `zip`: builds the EGO zip `jeyboard@johnramsden.ca.shell-extension.zip`. The Makefile uses plain `zip` (below) rather than `gnome-extensions pack`; the content is equivalent and it works on hosts without `gnome-extensions`. The `pack` form, for reference:
 
   ```
@@ -632,7 +635,7 @@ The system flavour adds `"gdm"` to `session-modes`. Add `"url"` (the repository 
 - **Debugging.** Logs: `journalctl -f -o cat /usr/bin/gnome-shell`. Looking Glass: Alt+F2 → `lg` (closed automatically on the lock screen).
 - **Ubuntu source check.** Before trusting spike results, compare the Ubuntu 50.1 sources (`apt source gnome-shell mutter`) with the files this spec cites at 50.5/51.0: `keyboard.js`, `modalDialog.js`, `grabHelper.js`, `switcherPopup.js`, `screenshot.js`, `events.c`, `clutter-main.c`, `meta-wayland-popup.c`, `meta-wayland-pointer.c`.
 - **GNOME 51.** Use an Ubuntu 26.10 or GNOME OS nightly VM.
-- **Optional later: headless CI.** `gnome-shell-test-tool --headless --extension jeyboard@johnramsden.ca.shell-extension.zip tests/shell/smoke.js` (gnome-shell package, 50+). Automation scripts can import `Main` and create Clutter virtual pointer devices.
+- **Headless shell test (implemented as `make shell-test`).** `gnome-shell-test-tool --headless --extension jeyboard@johnramsden.ca.shell-extension.zip tests/shell/smoke.js` (gnome-shell package, 50+). Automation scripts can import `Main` and create Clutter virtual pointer devices.
 
 ## 13. Spikes, then build
 

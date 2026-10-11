@@ -35,7 +35,27 @@ import {Panel} from './view.js';
 // provides this.uuid (from metadata.json) and this.getSettings() (GSettings, see the
 // schema XML). Members starting with an underscore are private by convention only.
 export default class JeyboardExtension extends Extension {
+    // The shell does not call disable() after an enable() that threw (the extension
+    // goes to the ERROR state), so undo a partial enable() ourselves.
     enable() {
+        // Set before anything can throw: disable() relies on them.
+        // _shown: panel is currently displayed (user choice or forced by a modal).
+        // _unredirected: we are holding the compositor's "no unredirect" lock, see
+        //   _setUnredirect().
+        // _screenshotOpening: true only while Main.screenshotUI.open() is running, see
+        //   _wrapScreenshotUI() and the 'system-modal-opened' handler below.
+        this._shown = false;
+        this._unredirected = false;
+        this._screenshotOpening = false;
+        try {
+            this._enable();
+        } catch (e) {
+            this.disable();
+            throw e;
+        }
+    }
+
+    _enable() {
         // Cheap self-check that the layout data is well formed; throws if not.
         layoutLib.validate(us);
         // GSettings: the shell's persistent key/value store (dconf). The keys are
@@ -45,14 +65,6 @@ export default class JeyboardExtension extends Extension {
         // directory (docs/SPEC.md 11.3).
         // Everything stored on `this` below is state that disable() clears.
         this._settings = this.getSettings();
-        // _shown: panel is currently displayed (user choice or forced by a modal).
-        // _unredirected: we are holding the compositor's "no unredirect" lock, see
-        //   _setUnredirect().
-        // _screenshotOpening: true only while Main.screenshotUI.open() is running, see
-        //   _wrapScreenshotUI() and the 'system-modal-opened' handler below.
-        this._shown = false;
-        this._unredirected = false;
-        this._screenshotOpening = false;
 
         // Three collaborators, each in its own file:
         //   Typer  - injects the actual key press/release events (typer.js).
@@ -172,7 +184,7 @@ export default class JeyboardExtension extends Extension {
         // the extension). Order: first stop reacting to events (restore patched
         // methods, disconnect every signal made with owner `this`), then release held
         // keys and tear down objects. The `?.` calls do nothing on null, so disable()
-        // is safe even if enable() failed part-way.
+        // is safe on a part-way enable(); enable() calls it itself on failure.
         this._injections?.clear();
         this._injections = null;
 

@@ -30,6 +30,10 @@
 //     sight, is still released (the polling path: the "guaranteed release");
 //   - presses that start no gesture (gap between keys, right click on the header)
 //     do not leave the input "claimed" and wedge the next click;
+//   - a release that polling already ended (poll saw the button up first) is still
+//     consumed when its event arrives, and owed releases expire;
+//   - scroll over the panel is swallowed, elsewhere it propagates;
+//   - the close button hides the panel and saves visible=false;
 //   - dragging the header moves the panel and saves its position;
 //   - disable() with Ctrl still toggled on sends a release for it (no stuck key).
 import Clutter from 'gi://Clutter';
@@ -240,6 +244,39 @@ export async function run() {
     check('right-click on header does not wedge the claim', take(), 'v30 ^30');
     check('input idle', inst._input.claimed, false);
 
+    // Poll-vs-event race: get_pointer() sees the button up before the release event
+    // has been dispatched. Polling then ends the sequence, and the late release
+    // must still be consumed (docs/SPEC.md 5.3). This filter is added after the
+    // extension's, so it sees only the releases the extension lets through.
+    {
+        let leaked = 0;
+        const id = Clutter.Event.add_filter(null, (event, _actor) => {
+            if (event.type() === Clutter.EventType.BUTTON_RELEASE)
+                leaked++;
+            return Clutter.EVENT_PROPAGATE;
+        });
+        const [x, y] = centre(30);
+        await move(x, y);
+        await button(1, true);
+        take();
+        // Reproduce the race deterministically: one poll sees the button already up
+        // (get_pointer is faked for that call), then the real release arrives.
+        const real = global.get_pointer;
+        global.get_pointer = () => [x, y, 0];
+        try {
+            inst._input._poll();
+        } finally {
+            global.get_pointer = real;
+        }
+        check('poll saw the button up before the event', inst._input.claimed, false);
+        pointer.notify_button(Clutter.CURRENT_TIME, 1, Clutter.ButtonState.RELEASED);
+        await sleep(200);
+        Clutter.Event.remove_filter(id);
+        check('poll before release event releases the key', take(), '^30');
+        check('late release event is consumed', leaked, 0);
+        check('input idle after race', inst._input.claimed, false);
+    }
+
     // Drag the header; position changes and is saved on release.
     // The pointer moves left and up by 200 x 120 px in two steps; the panel must end
     // up further left, and pos-x in GSettings (default -1) must now be a real
@@ -260,12 +297,45 @@ export async function run() {
         check('geometry saved', settings.get_double('pos-x') >= 0, true);
     }
 
-    // Disabling with Ctrl on must release it. disable() is called directly with the
-    // live instance as `this`; its release-all must emit the Ctrl release ('^29'),
+    // An owed release expires: a record older than the expiry must not swallow an
+    // unrelated release. A record stamped at time 0 is long expired.
+    {
+        inst._input._pendingReleases.push({button: 3, device: null, at: 0});
+        inst._input._pruneOwed();
+        check('expired owed release is dropped', inst._input._pendingReleases.length, 0);
+    }
+
+    // Scroll over the panel is consumed, scroll elsewhere is not.
+    {
+        const scroll = actor => inst._input._onEvent({
+            type: () => Clutter.EventType.SCROLL,
+        }, actor);
+        check('scroll over panel swallowed', scroll(panel.actor), Clutter.EVENT_STOP);
+        check('scroll elsewhere propagates', scroll(global.stage), Clutter.EVENT_PROPAGATE);
+    }
+
+    // Close button: press and release on the X hides the panel and saves visible=false;
+    // show it again (as the top-bar button would) for the checks that follow.
+    {
+        const [px, py] = panel.actor.get_transformed_position();
+        const c = panel.geometry.close;
+        await move(px + c.x + c.w / 2, py + c.y + c.h / 2);
+        await button(1, true);
+        await button(1, false);
+        await sleep(200);
+        check('close hides panel', panel.actor.visible, false);
+        check('close saves visible=false', settings.get_boolean('visible'), false);
+        inst._setUserVisible(true);
+        await sleep(300);
+        check('panel shown again', panel.actor.visible, true);
+    }
+
+    // Disabling with Ctrl on must release it. The extension is disabled through the
+    // extension manager, as the shell does; its release-all must emit the Ctrl release ('^29'),
     // so no key is left logically held after the extension is gone.
     await click(29);
     take();
-    ext.stateObj.disable?.call(inst);
+    await Main.extensionManager._callExtensionDisable(UUID);
     await sleep(100);
     check('disable releases ctrl', take(), '^29');
 

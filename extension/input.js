@@ -50,6 +50,10 @@ import * as layoutLib from './layout.js';
 // being held, and costs less.
 const POLL_FAST_MS = 16;   // drag and resize
 const POLL_SLOW_MS = 100;  // every claim until a drag or resize starts
+// How long an owed release (see _swallowRelease) stays valid. The race it covers
+// lasts less than a frame; the expiry stops a release that really was lost (slide-off
+// with no grab) from swallowing an unrelated app release much later.
+const OWED_RELEASE_MS = 500;
 
 // global.get_pointer() returns a bitmask of which buttons are down. Mouse button
 // numbers (1 = left, 2 = middle, 3 = right ...) map to Clutter's mask bits here.
@@ -73,6 +77,12 @@ export class Input {
         // {button, kind: 'none'|'key'|'drag'|'resize'|'close', start: [x, y],
         //  device, origin?}
         this._claim = null;
+        // Releases we still owe a STOP: {button, device} of presses we consumed
+        // whose sequence ended (or was never tracked) without seeing the release
+        // event. See _swallowRelease().
+        this._pendingReleases = [];
+        // Timer that removes a deferred filter once owed releases have expired.
+        this._owedTimerId = 0;
         // Ids returned by Clutter / GLib so we can remove the filter and the
         // timer later. 0 means "none".
         this._filterId = 0;
@@ -109,11 +119,14 @@ export class Input {
     destroy() {
         this._stopPolling();
         this._claim = null;
+        this._pendingReleases = [];
+        this._clearOwedTimer();
         this._removeFilter();
     }
 
     _removeFilter() {
         this._removePending = false;
+        this._clearOwedTimer();
         if (!this._filterId)
             return;
         Clutter.Event.remove_filter(this._filterId);
@@ -193,14 +206,60 @@ export class Input {
         }
     }
 
+    // A consumed press whose release event has not been seen yet. get_pointer()
+    // reads mutter's input state, which runs ahead of the events queued for the
+    // stage, so a poll can see "button up" before the BUTTON_RELEASE event has
+    // reached us. Ending the sequence then is right (keys are released), but the
+    // release event arrives later and must still be STOPped, or it would close an
+    // app popover (docs/SPEC.md 5.3). Same for extra buttons pressed during a claim.
+    _swallowRelease(event) {
+        this._owe(event.get_button(), event.get_source_device());
+    }
+
+    _owe(button, device) {
+        this._pruneOwed();
+        this._pendingReleases.push({button, device, at: GLib.get_monotonic_time()});
+    }
+
+    // Drop owed releases older than OWED_RELEASE_MS (get_monotonic_time is in us).
+    _pruneOwed() {
+        const oldest = GLib.get_monotonic_time() - OWED_RELEASE_MS * 1000;
+        this._pendingReleases = this._pendingReleases.filter(p => p.at >= oldest);
+    }
+
+    _clearOwedTimer() {
+        if (this._owedTimerId)
+            GLib.source_remove(this._owedTimerId);
+        this._owedTimerId = 0;
+    }
+
+    // Remove and report a pending release matching this event.
+    _takePendingRelease(event) {
+        this._pruneOwed();
+        const i = this._pendingReleases.findIndex(p =>
+            p.button === event.get_button() && p.device === event.get_source_device());
+        if (i < 0)
+            return false;
+        this._pendingReleases.splice(i, 1);
+        // A deferred filter removal was only waiting for this release.
+        if (this._removePending && !this._claim && !this._pendingReleases.length)
+            this._removeFilter();
+        return true;
+    }
+
     _onPress(event, actor) {
+        // A new press of a button means its earlier release really was lost (we
+        // saw the poll end it and no event came): do not swallow the new release.
+        this._takePendingRelease(event);
         // Presses elsewhere belong to the apps and shell: let them through.
         if (!this._isOverPanel(actor))
             return Clutter.EVENT_PROPAGATE;
-        // A second button pressed while one sequence is active: swallow it, do
-        // nothing (we only track one sequence at a time).
-        if (this._claim)
+        // A second button pressed while one sequence is active: swallow it and
+        // its release, do nothing else (we only track one sequence at a time).
+        if (this._claim) {
+            this._swallowRelease(event);
             return Clutter.EVENT_STOP;
+        }
 
         const button = event.get_button();
         const [x, y] = event.get_coords();
@@ -262,8 +321,10 @@ export class Input {
 
     _onRelease(event) {
         const claim = this._claim;
-        // Not the release of our sequence (no claim, other button or device):
-        // not ours, let it through.
+        // Not the release of our sequence: ours only if it was owed (see
+        // _swallowRelease), otherwise let it through.
+        if (this._takePendingRelease(event))
+            return Clutter.EVENT_STOP;
         if (!claim || event.get_button() !== claim.button ||
             event.get_source_device() !== claim.device)
             return Clutter.EVENT_PROPAGATE;
@@ -346,8 +407,9 @@ export class Input {
         // Buttons we have no mask for count as mask 0, so they end the sequence at
         // once instead of throwing.
         if (!(mods & (BUTTON_MASKS[claim.button] ?? 0))) {
-            // Button no longer held: this is the release, even though we never
-            // saw a release event.
+            // Button no longer held: this is the release, even though we may not
+            // have seen a release event (yet). Owe a STOP for it.
+            this._owe(claim.button, claim.device);
             this._endSequence(x, y);
             return;
         }
@@ -417,7 +479,21 @@ export class Input {
         this._claim = null;
         this._host.panel.setHover(null);
         this._stopPolling();
-        if (this._removePending)
+        if (!this._removePending)
+            return;
+        if (!this._pendingReleases.length) {
             this._removeFilter();
+            return;
+        }
+        // A release is still owed (the filter must be there to STOP it): remove the
+        // filter when it arrives, or when the owed releases have expired.
+        this._clearOwedTimer();
+        this._owedTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, OWED_RELEASE_MS + 50, () => {
+            this._owedTimerId = 0;
+            this._pruneOwed();
+            if (this._removePending && !this._claim && !this._pendingReleases.length)
+                this._removeFilter();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 }
