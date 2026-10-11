@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y debhelper devscripts gjs zip
+        run: sudo apt-get update && sudo apt-get install -y debhelper devscripts gjs zip build-essential
       - name: Build the .deb
         run: dpkg-buildpackage -us -uc -b
       - name: Build the zip and check its contents
