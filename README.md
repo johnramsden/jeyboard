@@ -85,8 +85,7 @@ Install `debhelper`, `gjs`, and `dput`, and configure a GPG secret key authorize
 - Sticky, Slow and Bounce Keys (Accessibility > Typing) apply to jeyboard's keys
   too, and with Sticky Keys on GNOME ignores the bare Super tap. With "Enable by
   keyboard" on, holding Shift 8 s or pressing it five times toggles Slow/Sticky Keys.
-- The panel and OSD windows may draw over each other; the panel cannot be excluded
-  from screen recordings.
+- The panel may appear in screenshots and screen recordings; it cannot be excluded from captures. Opening the screenshot UI auto-shows the keyboard without changing the saved visibility preference.
 - The gnome-initial-setup first-boot session is not supported.
 - The GDM keyfile is `/usr/share/gdm/dconf/95-jeyboard`. A later-sorting keyfile from
   another package that also sets `enabled-extensions` overrides it. Only Ubuntu's

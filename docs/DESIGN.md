@@ -244,7 +244,6 @@ A stuck modifier on a shared system is awful, so there are several layers
   drops held modifiers from XKB's state), the extension is disabled, or any handler
   throws. The exception path calls `typer.releaseAll()` and starts from a fresh state
   machine, rather than `keys.releaseAll`, so it works even if `keys.js` state is corrupt.
-  The screenshot-UI hide (section 9) is deliberately **not** a trigger.
 - Release-all releases ordinary keys first, then modifiers, like a person lifting their
   fingers.
 - On disable we release everything and then call `run_dispose()` on the virtual device so
@@ -297,35 +296,18 @@ listed in its `metadata.json`.
   later-sorting keyfile from another package that also sets `enabled-extensions`
   overrides ours. Never rely on a session mode's `enabledExtensions`: `unlock-dialog`
   inherits an empty list.
-- **Password and other shell dialogs (polkit, keyring, Wi-Fi/VPN secrets, mount
-  passwords, Alt+F2):** these are "system modals". The layout manager announces them with
-  the `system-modal-opened` signal, and we show the panel then, **without** changing the
-  saved `visible` setting. The reason: while such a dialog is open the top-bar button
-  cannot be clicked, so auto-showing is the only way a mouse-only user could get a
-  keyboard there. It stays until the user hides it.
-  - The screenshot UI also emits that signal. We deliberately ignore it, otherwise taking a
-    screenshot would pop the keyboard up.
+- **Password, other shell dialogs and the screenshot UI (polkit, keyring, Wi-Fi/VPN secrets, mount passwords, Alt+F2):** these are "system modals". The layout manager announces them with `system-modal-opened`, and we show the panel then, **without** changing the saved `visible` setting. While a password dialog is open the top-bar button cannot be clicked, so auto-showing is the only way a mouse-only user could get a keyboard there. The panel stays shown until the user hides it.
 - **Hiding by the user** (top-bar button or the x) saves `visible` only in the normal user
   session. On the lock and login screens a hide is not saved and lasts only until the next
   session-mode change, when `syncSessionState()` forces the panel back on.
 
 ## 9. The screenshot UI
 
-(SPEC 5.6.) The screenshot tool captures the screen first, so a visible panel would be in
-the picture. We wrap `Main.screenshotUI.open()` (a private shell method, wrapped with
-`InjectionManager`) to hide the panel while it runs, then restore visibility from the
-extension's own state and raise the panel back above the screenshot UI, which `open()` put
-on top. Two related details:
+(SPEC 5.6.) The screenshot UI uses the same `system-modal-opened` auto-show behavior as other shell modals; opening it does not change the saved `visible` preference. The keyboard remains usable by pointer and may appear in the capture because there is no per-actor screenshot exclusion.
 
-- The screenshot UI itself emits `system-modal-opened`, which would auto-show the panel
-  (section 8). A flag set by the wrapper makes that handler ignore it.
-- The hide is **cosmetic only**: it does not release keys, remove the filter, drop a claim
-  or touch the saved setting. Clicking PrtSc on the panel opens the screenshot UI while the
-  mouse button is still down, and that release must still be consumed and must still
-  release code 99, so the claim has to survive.
+`ScreenshotUI.open()` raises the screenshot UI group over the panel after capturing the frozen frame. The normal per-frame stacking check raises the panel again, with no wrapper or replacement of the shell's `open()` method.
 
-If a future GNOME breaks the wrapper, the only cost is the keyboard showing up in
-screenshots.
+Clicking PrtSc on the panel may open the screenshot UI before the mouse button is released. The input filter must still consume the release and release code 99 through its ordinary claimed-sequence handling; opening the screenshot UI must not drop the claim.
 
 ## 10. Window and position handling
 
@@ -347,9 +329,7 @@ screenshots.
 
 ## 11. Other principles
 
-- **Public APIs first.** Anything private or monkey-patched is listed in SPEC 16 with a
-  reason. Currently: `Main.uiGroup`, `Main.layoutManager`, `Main.sessionMode`,
-  `Main.panel`, and the wrapped `Main.screenshotUI.open`.
+- **Public APIs first.** Anything private or monkey-patched is listed in SPEC 16 with a reason. Currently: `Main.uiGroup`, `Main.layoutManager`, `Main.sessionMode` and `Main.panel`. The screenshot UI's `open()` method is not overridden.
 - **Hard rules** (AGENTS.md): never take key focus, never `pushModal`, never open a
   `PopupMenu` (each steals focus); never `notify_keyval`; always release; never log key
   codes or typed content. Logs may record only state changes.

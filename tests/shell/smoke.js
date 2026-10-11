@@ -147,6 +147,53 @@ export async function run() {
     await click(30);
     check('left click a', take(), 'v30 ^30');
 
+    // ScreenshotUI.open() captures the stage before it emits system-modal-opened.
+    // Start with a hidden panel and the user's saved choice off; the real modal
+    // must bring the panel back without changing that choice. Click a key while
+    // the screenshot grab is active to prove it is actually usable there.
+    inst._setUserVisible(false);
+    await sleep(200);
+    try {
+        await Main.screenshotUI.open();
+        await sleep(300);
+        check('screenshot UI opened over hidden panel', Main.screenshotUI.visible, true);
+        check('screenshot modal shows hidden panel', panel.actor.visible, true);
+        check('screenshot modal preserves saved hidden choice', settings.get_boolean('visible'), false);
+        await click(30);
+        check('panel types inside screenshot UI', take(), 'v30 ^30');
+    } finally {
+        Main.screenshotUI.close(true);
+        inst._setUserVisible(true);
+        await sleep(300);
+    }
+
+    // PrtSc (evdev 99) opens ScreenshotUI from a real panel press. Keep the
+    // virtual pointer button down until the screenshot grab has opened: its
+    // release still belongs to the panel, and Print must not remain held.
+    try {
+        const [x, y] = centre(99);
+        await move(x, y);
+        await button(1, true);
+        try {
+            await sleep(300);
+            check('PrtSc press opens screenshot UI', Main.screenshotUI.visible, true);
+            check('panel remains shown in screenshot UI', panel.actor.visible, true);
+            check('PrtSc keeps pointer claimed while held', inst._input.claimed, true);
+            // The shell binding consumes Print's press before the observer filter.
+            take();
+        } finally {
+            await button(1, false);
+        }
+        await sleep(200);
+        check('PrtSc releases Print after screenshot opens', take(), '^99');
+        check('PrtSc release ends pointer claim', inst._input.claimed, false);
+        check('screenshot UI survives PrtSc release', Main.screenshotUI.visible, true);
+        await click(30);
+        check('panel accepts next key inside screenshot UI', take(), 'v30 ^30');
+    } finally {
+        Main.screenshotUI.close(true);
+        await sleep(300);
+    }
     // Right click = "with Shift": Shift (42) goes down first and up last, wrapping P
     // (25), so the app receives Shift+P.
     await click(25, 3);

@@ -238,7 +238,7 @@ Hazards to handle:
 - **One function, `syncSessionState()`.** It shows the panel if `isLocked || isGreeter`; otherwise it shows the panel only if the `visible` setting is true. It MUST be called at the end of `enable()`, and from the `Main.sessionMode` `updated` handler, after release-all. Why `enable()` must apply the state itself:
   - in the GDM greeter, the shell starts in mode `gdm` and never emits `updated` after extensions are enabled;
   - at lock, when another extension is disabled, the shell disables and re-enables jeyboard ("rebase") after the mode has already become `unlock-dialog`, so the fresh handler misses that `updated`.
-- **Password dialogs.** On `Main.layoutManager` `system-modal-opened` (emitted when a shell modal dialog opens: polkit, keyring, Wi-Fi/VPN, mount, Alt+F2, end-session), show the panel without changing `visible`. Password surfaces always get the keyboard. While a modal dialog is open, the top-bar button cannot be clicked, so this is the only way to get the keyboard there. The panel stays shown until the user hides it. The screenshot UI also emits this signal and is excluded (5.6).
+- **Shell modal dialogs.** On `Main.layoutManager` `system-modal-opened` (emitted when a shell modal dialog opens: polkit, keyring, Wi-Fi/VPN, mount, Alt+F2, end-session and the screenshot UI), show the panel without changing `visible`. Password surfaces always get the keyboard. While a modal dialog is open, the top-bar button cannot be clicked, so this is the only way to get the keyboard there. The panel stays shown until the user hides it.
 - **The `visible` setting** reflects only the user-session choice, made with the top-bar button or the × button.
 - **Why input works there.**
   - The screen shield and unlock dialog grab `Main.uiGroup` (https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/50.5/js/ui/unlockDialog.js#L955), and the GDM login dialog grabs the whole stage. The panel is inside both.
@@ -252,25 +252,9 @@ Hazards to handle:
   - The user can click switcher items directly, or click Tab/arrows/Esc on the keyboard (needs S2).
   - The switcher finishes as soon as its binding modifier is released (51.0 switcherPopup.js#L232-L244; 50.x `vfunc_key_release_event`), or immediately if that modifier is already up when it opens (https://github.com/GNOME/gnome-shell/blob/51.0/js/ui/switcherPopup.js#L158-L163). So Alt on → Tab → Alt off switches to the previous window. Ctrl+Alt+Tab works the same with Ctrl and Alt on.
 - **Super-based switchers** (Super+Tab, Super+`, Super+Space for input sources) are one-shot: Super is never held (6.3), so each chord selects the next item and the popup closes at once. To browse windows, use Alt+Tab with Alt locked.
-- **Screenshot UI.** It is fully usable by pointer.
-  - `ScreenshotUI.open()` is async. After capturing the frozen frame, it raises `Main.layoutManager.screenshotUIGroup` to the top of `Main.uiGroup` (no `child-added`), and its full-screen reactive actor covers the panel until the per-frame check (5.2) raises the panel again.
-  - So the panel does not appear in the screenshot, wrap `open()` (private, via `InjectionManager`):
-
-    ```js
-    this._injections.overrideMethod(Main.screenshotUI, 'open', orig => async function (...args) {
-        panel.visible = false;   // cosmetic hide only, so the panel is not in the capture
-        try {
-            return await orig.call(this, ...args);
-        } finally {
-            panel.visible = true;
-            Main.uiGroup.set_child_above_sibling(panel, null);
-        }
-    });
-    ```
-
-  - `ScreenshotUI.open()` itself emits `system-modal-opened` (gnome-shell 50.1 screenshot.js); the wrap sets a flag so the password-dialog auto-show (5.5) ignores that emission, and `finally` restores visibility from the extension's own shown state (not a value captured before the await), skipping everything if `disable()` ran meanwhile.
-  - This hide is cosmetic only and MUST NOT use the user-hide path: no release-all, the filter stays installed and its claim is kept, and unredirect and `visible` are untouched. `open()` is usually triggered by the Print keybinding (fires on key press) while the mouse button that pressed PrtSc is still down; that release must still be consumed and must release code 99.
-  - If the wrap breaks in a future GNOME, the only cost is the keyboard appearing in screenshots.
+- **Screenshot UI.** It is fully usable by pointer. Its `system-modal-opened` signal uses the ordinary modal auto-show path (5.5), leaving the saved `visible` preference unchanged. The panel may appear in screenshots; there is no capture exclusion or screenshot-specific visibility change.
+  - `ScreenshotUI.open()` is async. After capturing the frozen frame, it raises `Main.layoutManager.screenshotUIGroup` to the top of `Main.uiGroup` (no `child-added`), and its full-screen reactive actor covers the panel until the per-frame check (5.2) raises the panel again. No override of `open()` is needed for stacking.
+  - Clicking PrtSc on the panel can open the screenshot UI while the pointer button is still down. The ordinary claimed-sequence handling MUST still consume that button's release and release code 99; opening the screenshot UI must not abandon the claim.
 - **Area-select and colour-picker overlays** (used by apps) are pointer-driven; Esc from the keyboard works if S2 passes.
 - **Screen recordings.** The keyboard cannot be excluded from them; there is no per-actor capture exclusion.
 - **Overview search.** Works, because consumed clicks never reach the search-reset gesture. S2 must verify this.
@@ -280,7 +264,7 @@ Hazards to handle:
 - **GNOME 51:**
   - Parent the panel under `global.compositor.get_input_panel_group()` instead of `Main.uiGroup`. The group is a 0x0, non-reactive actor at (0,0) with no layout manager; children position themselves in stage coordinates.
   - Mutter treats it as "grab chrome": pointer events whose target is inside it bypass any grab (https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/5171, https://gitlab.gnome.org/GNOME/gnome-shell/-/merge_requests/4283). Handle raw events on the panel.
-  - Keep pick-blocking overlays below the group. On `Main.uiGroup` `child-added`, move each `SwitcherPopup`, `SelectArea` and `PickPixel` below it with `Main.uiGroup.set_child_below_sibling(child, global.compositor.get_input_panel_group())`. After every awaited `ScreenshotUI.open()`, do the same for `Main.layoutManager.screenshotUIGroup`.
+  - Keep pick-blocking overlays below the group. On `Main.uiGroup` `child-added`, move each `SwitcherPopup`, `SelectArea` and `PickPixel` below it with `Main.uiGroup.set_child_below_sibling(child, global.compositor.get_input_panel_group())`. When `Main.layoutManager.screenshotUIGroup` raises itself without `child-added`, use the per-frame stacking check to keep it below the input panel group; do not wrap or await `ScreenshotUI.open()`.
   - Shell menus raised by `PopupMenu.open()` still draw above the panel where they overlap; accepted.
   - Treat a LEAVE event with `Clutter.EventFlags.FLAG_GRAB_NOTIFY` as cancelling the owned press.
 - **GNOME 50:**
@@ -390,8 +374,6 @@ Each trigger runs `typer.send(keys.releaseAll(state)); typer.releaseAll(); view.
 | `global.backend` `keymap-changed` | release-all (all toggles off) |
 | Exception in any handler | `typer.releaseAll(); state = keys.createState();` |
 | Polling finds the claimed button up | end the sequence normally: `typer.send(keys.release(state, button))` (also releases any Shift or Super the click added and the one-shot modifiers it used up) |
-
-The screenshot capture hide (5.6) is NOT a trigger.
 
 ## 7. Layout: full-size US ANSI (`layouts/us.js`)
 
@@ -798,7 +780,6 @@ Stress:
 **Private APIs used** (re-run S1/S2 after each Ubuntu 50.x update and each new GNOME release):
 - `Main.uiGroup` stacking;
 - `Main.layoutManager` (monitors, work areas, `monitors-changed`, `system-modal-opened`);
-- `Main.screenshotUI.open` (wrapped; cosmetic);
 - `Main.sessionMode`;
 - `Main.panel`;
 - in the fallback only, `KeyboardManager.prototype.maybeHandleEvent` (50) and the input panel group (51).

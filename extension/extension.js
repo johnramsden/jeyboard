@@ -21,7 +21,7 @@
 // binary (e.g. `Main`, a bag of the shell's live singletons); './view.js' is one of
 // this extension's own files.
 import Clutter from 'gi://Clutter';
-import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Indicator} from './indicator.js';
@@ -42,11 +42,8 @@ export default class JeyboardExtension extends Extension {
         // _shown: panel is currently displayed (user choice or forced by a modal).
         // _unredirected: we are holding the compositor's "no unredirect" lock, see
         //   _setUnredirect().
-        // _screenshotOpening: true only while Main.screenshotUI.open() is running, see
-        //   _wrapScreenshotUI() and the 'system-modal-opened' handler below.
         this._shown = false;
         this._unredirected = false;
-        this._screenshotOpening = false;
         try {
             this._enable();
         } catch (e) {
@@ -130,23 +127,19 @@ export default class JeyboardExtension extends Extension {
             this._releaseAll();
             this._syncSessionState();
         }, this);
-        // PASSWORD DIALOGS. When the shell opens a modal dialog (polkit "authenticate"
+        // MODAL DIALOGS. When the shell opens a modal dialog (polkit "authenticate"
         // prompts, keyring, Wi-Fi/VPN secrets, Alt+F2, ...) the top bar cannot be
         // clicked, so the user would have no way to open the keyboard. layoutManager
         // announces these with 'system-modal-opened'; we show the panel so a password
-        // can be typed. We call _show(), not _setUserVisible(), so the saved `visible`
-        // preference is unchanged. The panel then stays up until the user hides it.
+        // can be typed. The screenshot UI emits the same signal and also shows it:
+        // https://github.com/GNOME/gnome-shell/blob/50.1/js/ui/screenshot.js
+        // We call _show(), not _setUserVisible(), so the saved `visible` preference
+        // is unchanged. The panel then stays up until the user hides it.
         // 'monitors-changed' (a display is plugged/unplugged or rearranged) re-clamps
         // the panel so it cannot end up off-screen.
         // (docs/SPEC.md 5.5)
         Main.layoutManager.connectObject(
-            'system-modal-opened', () => {
-                // The screenshot UI also emits this signal, but it is not a password
-                // prompt and the panel must not pop up over a screenshot. The flag is
-                // set by our wrapper around ScreenshotUI.open() (see _wrapScreenshotUI).
-                if (!this._screenshotOpening)
-                    this._show();
-            },
+            'system-modal-opened', () => this._show(),
             'monitors-changed', () => this._panel.clamp(),
             this);
         // XKB is the library that tracks which modifiers (Shift, Ctrl...) are held. A
@@ -164,11 +157,6 @@ export default class JeyboardExtension extends Extension {
             this);
         this._syncLocks();
 
-        // InjectionManager is the supported way to monkey-patch a method on a shell
-        // object and have it restored cleanly: clear() undoes every override.
-        this._injections = new InjectionManager();
-        this._wrapScreenshotUI();
-
         // Apply the current session state now. Waiting for the 'updated' signal is not
         // enough: the greeter never emits `updated` after extensions load, and a
         // lock-time rebase misses it too (docs/SPEC.md 5.5).
@@ -181,13 +169,10 @@ export default class JeyboardExtension extends Extension {
         //
         // disable() must be synchronous and must undo everything enable() did
         // (otherwise signal handlers, the event filter, timers and held keys outlive
-        // the extension). Order: first stop reacting to events (restore patched
-        // methods, disconnect every signal made with owner `this`), then release held
-        // keys and tear down objects. The `?.` calls do nothing on null, so disable()
-        // is safe on a part-way enable(); enable() calls it itself on failure.
-        this._injections?.clear();
-        this._injections = null;
-
+        // the extension). Order: first disconnect every signal made with owner
+        // `this`, then release held keys and tear down objects. The `?.` calls do
+        // nothing on null, so disable() is safe on a part-way enable(); enable()
+        // calls it itself on failure.
         global.stage.disconnectObject(this);
         Main.uiGroup.disconnectObject(this);
         Main.sessionMode.disconnectObject(this);
@@ -293,39 +278,5 @@ export default class JeyboardExtension extends Extension {
             global.compositor.disable_unredirect();
         else
             global.compositor.enable_unredirect();
-    }
-
-    // The screenshot UI (PrtSc) captures the screen first, so a visible panel would be
-    // in the picture. We wrap its open() so the panel is hidden while it runs, then
-    // restore it from _shown and raise it above the screenshot UI, which open() put on
-    // top. This hide is cosmetic only: no release-all, the filter and any claim stay
-    // (docs/SPEC.md 5.6), because PrtSc is usually clicked on this panel and its mouse
-    // release must still be consumed and release code 99.
-    // Monkey-patch of a private shell object, listed in docs/SPEC.md 16; if it breaks, the
-    // only cost is the panel appearing in screenshots.
-    _wrapScreenshotUI() {
-        // Inside the `function` below, `this` is the screenshotUI object, not our
-        // extension, so we keep the extension in `ext`. `panel` is captured to detect,
-        // later, whether disable() replaced it in the meantime.
-        const ext = this;
-        const panel = this._panel;
-        // overrideMethod(obj, 'name', orig => replacement): `orig` is the original
-        // method. open() returns a Promise (it finishes after capturing the screen),
-        // hence async/await.
-        this._injections.overrideMethod(Main.screenshotUI, 'open', orig => async function (...args) {
-            panel.actor.visible = false;
-            ext._screenshotOpening = true;
-            try {
-                return await orig.call(this, ...args);
-            } finally {
-                ext._screenshotOpening = false;
-                // disable() may have run during the await; otherwise follow the
-                // extension's own state, which a show or hide in between may have changed.
-                if (ext._panel === panel) {
-                    panel.actor.visible = ext._shown;
-                    Main.uiGroup.set_child_above_sibling(panel.actor, null);
-                }
-            }
-        });
     }
 }
