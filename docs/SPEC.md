@@ -552,7 +552,7 @@ Labels are written by hand for US. Typing does not depend on labels: keycodes ar
   "shell-version": ["50", "51"],
   "session-modes": ["user", "unlock-dialog"],
   "settings-schema": "org.gnome.shell.extensions.jeyboard",
-  "version-name": "0.1"
+  "version-name": "0.1.0"
 }
 ```
 

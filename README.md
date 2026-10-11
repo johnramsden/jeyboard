@@ -35,7 +35,7 @@ on the login screen at the next boot, unverified, spike S3):
 
     sudo apt install debhelper gjs
     dpkg-buildpackage -us -uc -b
-    sudo apt install ../gnome-shell-extension-jeyboard_0.1_all.deb
+    sudo apt install ../gnome-shell-extension-jeyboard_0.1.0_all.deb
 
 Extensions-website style zip (user install, no login screen support):
 
@@ -57,6 +57,20 @@ and when a shell password dialog opens.
 GitHub Actions (`.github/workflows/ci.yml`) runs `make test` and the `.deb`/zip build on
 every push and pull request, plus `make shell-test` on the `ubuntu-26.04` runner (a GitHub
 preview image; that job is non-blocking until it has been seen to pass).
+
+## Release to a PPA
+
+The initial release version is 0.1.0, recorded in `debian/changelog` (Debian source version) and `extension/metadata.json` (extension display version). Update both for subsequent releases. The changelog targets Ubuntu `resolute` (26.04); change the distribution for a different target.
+
+Install `debhelper`, `gjs`, and `dput`, and configure a GPG secret key authorized for your Launchpad PPA. Work from a clean checkout so the source package contains only intended release files.
+
+    sudo apt install debhelper gjs dput
+    git status --short
+    make test
+    dpkg-buildpackage -S -sa
+    dput ppa:YOUR_LAUNCHPAD_USER/YOUR_PPA ../jeyboard_0.1.0_source.changes
+
+`dpkg-buildpackage -S -sa` builds and signs a native Debian source package; the `.changes` file and its referenced files are written to the parent directory. If the signing key differs from the changelog maintainer, pass `-kYOUR_KEY_ID` to `dpkg-buildpackage`. Launchpad builds the binary `.deb` after the source upload. For a local binary without a PPA, use the commands under Install above.
 
 ## Limitations
 
