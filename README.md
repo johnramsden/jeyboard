@@ -31,7 +31,7 @@ test (`make shell-test`). Not checked: GNOME 51.
 ## Install
 
 Debian/Ubuntu package (system-wide; its GDM keyfile is meant to enable the extension
-on the login screen at the next boot, unverified, spike S3):
+on the login screen at the next boot; confirmed on GNOME 50.1, spike S3):
 
     sudo apt install debhelper gjs
     dpkg-buildpackage -us -uc -b
