@@ -50,7 +50,7 @@
 .jeyboard-key.blocked { background-color: #c01c28; }
 
 
-/* Main key text, and the small shifted symbol in the top-left corner. */
+/* Main key text, and the small shifted symbol inset from the upper-left corner. */
 .jeyboard-key-label { text-align: center; }
 .jeyboard-key-sub { color: #b0b0b8; }
 .jeyboard-key:checked .jeyboard-key-sub { color: #dbe9fb; }

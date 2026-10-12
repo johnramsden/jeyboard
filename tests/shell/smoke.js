@@ -38,6 +38,8 @@
 //   - disable() with Ctrl still toggled on sends a release for it (no stuck key).
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import Pango from 'gi://Pango';
+import St from 'gi://St';
 import * as Scripting from 'resource:///org/gnome/shell/ui/scripting.js';
 
 // Must match the "uuid" in extension/metadata.json; it is how the shell names the
@@ -116,6 +118,26 @@ export async function run() {
     const panel = inst._panel;
     check('panel visible', panel.actor.visible, true);
     check('visible saved', settings.get_boolean('visible'), true);
+
+    // Check the rendered St theme values, not the inline CSS string: primary
+    // characters must be legible at the smallest supported key pitch, and the
+    // shifted symbol must have breathing room inside its key.
+    const width = panel.geometry.width;
+    panel.setWidth(width * 24 / panel.geometry.u);
+    await sleep(100);
+    const number = panel._keys.get(2);
+    const named = panel._keys.get(14);
+    const fontSize = label => label.get_theme_node().get_font().get_size() / Pango.SCALE;
+    check('single-character label size', fontSize(number.main) >= 0.45 * panel.geometry.u, true);
+    check('named label stays smaller', fontSize(named.main) < fontSize(number.main), true);
+    check('shifted symbol size', fontSize(number.sub) >= 0.26 * panel.geometry.u, true);
+    check('shifted symbol inset',
+        number.sub.get_theme_node().get_padding(St.Side.LEFT) >= 0.07 * panel.geometry.u, true);
+    panel.sync(null, {caps: false, num: true});
+    check('numpad digit size', fontSize(panel._keys.get(79).main) >= 0.45 * panel.geometry.u, true);
+    panel.sync(null, {caps: false, num: false});
+    panel.setWidth(width);
+    await sleep(100);
 
     // Click the centre of a key. b is the pointer button: 1 left, 3 right.
     // `b = 1` is a default parameter value. The helper `centre` is defined just

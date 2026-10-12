@@ -406,7 +406,7 @@ export default {
     - `letter`;
     - `role`: `shift`, `ctrl`, `alt` or `super`.
 - **Letter labels.** Letters (`letter: true`) display lowercase, and uppercase when exactly one of these is true: a `shift` key is on, or Caps Lock is on (Shift XOR Caps Lock). This matches what a left click types (6.2). Letters need no `shiftLabel`; it is ignored if present.
-- **Other labels.** Non-letter keys never swap their main label. `shiftLabel` is always a small top-left secondary label, so the user knows what right-click types.
+- **Other labels.** Non-letter keys never swap their main label. `shiftLabel` is always a smaller secondary label inset from the upper-left corner, so the user knows what right-click types.
 - **Numpad labels.** Numpad keys show `label` when Num Lock is on and `numLockOffLabel` when it is off.
 - **Validation in `layout.js`:**
   - required fields present, with the right types;
@@ -477,6 +477,7 @@ Labels are written by hand for US. Typing does not depend on labels: keycodes ar
   - nothing in the header overlaps keys.
 
   `layout.js` computes it from the layout's `size`: u = panel width / (size[0] + 0.5), panel height = u × (size[1] + 0.5 + 0.5). Key rectangles are inset slightly for visual gaps; hit-testing uses the full cells.
+- **Key typography.** Single-character main labels use a 0.48u font; longer names use 0.3u to fit their caps. Shifted symbols use a 0.28u font with 0.08u padding inside the key. Fonts and padding compensate for the St theme scale factor as in 5.1.
 - **Hit-test order:** × > grip > header > key > none. A press on none is still consumed. Only button 1 starts a drag or resize, or arms ×.
 - **Size limits.** The `width` setting is the whole panel width. The minimum key pitch is 24 logical px. If the work area is narrower than that allows, the work area wins. The default width is 60% of the work area width of the primary monitor, and the default position is bottom centre of that work area.
 - **Dragging and resizing.** Driven by pointer polling (5.3). A drag moves the panel by the pointer delta since the press. A resize changes the width (the height follows) while keeping the top-left fixed.

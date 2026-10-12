@@ -82,7 +82,7 @@ export class Panel {
     }
 
     // Build the widget for one key: a box holding a main label (the key's text) and,
-    // for keys with a shifted symbol (e.g. '1' / '!'), a small top-left sub label.
+    // for keys with a shifted symbol (e.g. '1' / '!'), an inset upper-left sub label.
     _addKey(key) {
         const actor = new St.Widget({
             style_class: 'jeyboard-key',
@@ -99,6 +99,7 @@ export class Panel {
         // box so that CENTER actually centres it.
         const main = new St.Label({
             style_class: 'jeyboard-key-label',
+            text: key.label,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
@@ -174,15 +175,22 @@ export class Panel {
             const k = this._keys.get(cell.key.code);
             k.actor.set_position(cell.x + inset, cell.y + inset);
             k.actor.set_size(cell.w - 2 * inset, cell.h - 2 * inset);
-            k.main.style = font(0.3);
+            k.main.style = this._mainFont(k.main.text);
             if (k.sub)
-                k.sub.style = font(0.22);
+                k.sub.style = `${font(0.28)}padding: ${geo.u * 0.08 / scale}px;`;
         }
         for (const [button, rect] of [[this._grip, geo.grip], [this._close, geo.close]]) {
             button.set_position(rect.x, rect.y);
             button.set_size(rect.w, rect.h);
             button.style = font(0.4);
         }
+    }
+
+    // Single characters can fill the key; names need a smaller font to fit.
+    // Num Lock changes some labels between a digit and a navigation name.
+    _mainFont(text) {
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        return `font-size: ${this._geo.u * (text.length === 1 ? 0.48 : 0.3) / scale}px;`;
     }
 
     // Convert a point in stage (screen) coordinates to panel-local coordinates, which
@@ -231,7 +239,11 @@ export class Panel {
             // Tell screen readers the toggle's state too.
             if (key.role)
                 this._setChecked(actor, on.has(key.code));
-            main.text = this._labelFor(key, upper);
+            const label = this._labelFor(key, upper);
+            if (main.text !== label) {
+                main.text = label;
+                main.style = this._mainFont(label);
+            }
             // 58 = Caps Lock, 69 = Num Lock (evdev codes): tint their label green
             // while the lock is on (state comes from the keymap, not from keys.js).
             // Setting style_class replaces the whole class list, hence the full string.
