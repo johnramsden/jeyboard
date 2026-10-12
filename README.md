@@ -5,6 +5,8 @@ An on-screen keyboard for GNOME Shell on Wayland, built for mouse-only
 lock screen, the login screen, shell password dialogs and fullscreen apps, and
 it never takes keyboard focus from the app you are typing into.
 
+![jeyboard on-screen keyboard](docs/jeyboard.png)
+
 - Full-size US ANSI layout (104 keys), floating, draggable and resizable.
 - **Modifiers are one-shot, and lock on a double click.** Click Ctrl once and it is
   really held until you type the next key, which uses it up (Ctrl+G = click Ctrl,
@@ -20,7 +22,7 @@ it never takes keyboard focus from the app you are typing into.
 - Ctrl+Alt+F1..F12 is blocked, so a mouse-only user cannot strand themselves on a
   text console.
 
-Targets GNOME 50 and 51 (Wayland only). Behaviour is defined in [docs/SPEC.md](docs/SPEC.md); [docs/DESIGN.md](docs/DESIGN.md) explains how it works and why, for readers new to GNOME extensions.
+Targets GNOME 50 and 51 (Wayland only). Behaviour is defined in [docs/SPEC.md](docs/SPEC.md); [docs/DESIGN.md](docs/DESIGN.md) explains how it works and why.
 
 ## Status
 
@@ -30,23 +32,28 @@ test (`make shell-test`). Not checked: GNOME 51.
 
 ## Install
 
-Debian/Ubuntu package (system-wide; its GDM keyfile is meant to enable the extension
-on the login screen at the next boot; confirmed on GNOME 50.1, spike S3):
+On Ubuntu, install from the PPA (GNOME 50 or 51, Wayland):
+
+    sudo add-apt-repository ppa:johnramsden/jeyboard
+    sudo apt update
+    sudo apt install gnome-shell-extension-jeyboard
+
+Alternatively, build the Debian/Ubuntu package locally:
 
     sudo apt install debhelper gjs
     dpkg-buildpackage -us -uc -b
     sudo apt install ../gnome-shell-extension-jeyboard_0.1.0_all.deb
-
-Extensions-website style zip (user install, no login screen support):
-
-    make zip
-    gnome-extensions install --force jeyboard@johnramsden.ca.shell-extension.zip
 
 Then log out and back in (a running shell does not see a new extension), and run
 `gnome-extensions enable jeyboard@johnramsden.ca`. A user-installed copy takes
 precedence over the system copy in that user's session. Use the keyboard icon in the top bar to show
 and hide the panel. It appears by itself on the lock screen, on the login screen
 and when a shell password dialog opens.
+
+Rather than system-wide install, an extensions-website style zip (user install, no login screen support) is possible:
+
+    make zip
+    gnome-extensions install --force jeyboard@johnramsden.ca.shell-extension.zip
 
 ## Develop
 
